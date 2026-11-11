@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and test
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Unit tests
+        run: scripts/test.sh
+
+      - name: Build app
+        run: scripts/build-app.sh
+
+      - name: Package app
+        run: ditto -c -k --keepParent "build/Claude Usage Bar.app" ClaudeUsageBar.zip
+
+      - name: Upload app
+        uses: actions/upload-artifact@v7
+        with:
+          name: ClaudeUsageBar-${{ github.sha }}
+          path: ClaudeUsageBar.zip
+          retention-days: 7
+
+  lint-docs:
+    name: Lint Markdown
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: markdownlint
+        run: npx --yes markdownlint-cli@0.49.1 "**/*.md"

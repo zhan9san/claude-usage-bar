@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Unit tests
+        run: scripts/test.sh
+
+      - name: Build app
+        run: |
+          export APP_VERSION="${GITHUB_REF_NAME#v}"
+          export APP_BUILD="${GITHUB_RUN_NUMBER}"
+          scripts/build-app.sh
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+            "build/Claude Usage Bar.app/Contents/Info.plist"
+
+      - name: Package app
+        run: |
+          ZIP="ClaudeUsageBar-${GITHUB_REF_NAME}.zip"
+          ditto -c -k --keepParent "build/Claude Usage Bar.app" "$ZIP"
+          shasum -a 256 "$ZIP" > "$ZIP.sha256"
+          cat "$ZIP.sha256"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="ClaudeUsageBar-${GITHUB_REF_NAME}.zip"
+          cat > notes.txt <<EOF
+          ## Install
+
+          1. Download \`${ZIP}\`, unzip it and move \`Claude Usage Bar.app\` to \`/Applications\`.
+          2. The app is ad-hoc signed and not notarized, so clear the download quarantine once:
+
+             \`\`\`sh
+             xattr -dr com.apple.quarantine "/Applications/Claude Usage Bar.app"
+             \`\`\`
+
+          3. Open the app, click the gauge in the menu bar, open Settings and paste a token
+             created with \`claude setup-token\`.
+
+          Requires macOS 14 or later on Apple silicon.
+
+          EOF
+          gh release create "$GITHUB_REF_NAME" "$ZIP" "$ZIP.sha256" \
+            --title "Claude Usage Bar ${GITHUB_REF_NAME}" \
+            --notes-file notes.txt \
+            --generate-notes \
+            --verify-tag
