@@ -51,6 +51,14 @@ jobs:
           cat > notes.txt <<EOF
           ## Install
 
+          With Homebrew:
+
+          \`\`\`sh
+          brew install --cask zhan9san/tap/claude-usage-bar
+          \`\`\`
+
+          Or manually:
+
           1. Download \`${ZIP}\`, unzip it and move \`Claude Usage Bar.app\` to \`/Applications\`.
           2. The app is ad-hoc signed and not notarized, so clear the download quarantine once:
 
@@ -69,3 +77,52 @@ jobs:
             --notes-file notes.txt \
             --generate-notes \
             --verify-tag
+
+  homebrew:
+    name: Update Homebrew cask
+    needs: release
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ENV_HINTS: "1"
+      CASK_FILE: tap/Casks/claude-usage-bar.rb
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out the tap
+        uses: actions/checkout@v7
+        with:
+          repository: zhan9san/homebrew-tap
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          path: tap
+
+      - name: Write cask for the published zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="ClaudeUsageBar-${GITHUB_REF_NAME}.zip"
+          gh release download "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" -p "$ZIP" -D "$RUNNER_TEMP"
+          SHA256="$(shasum -a 256 "$RUNNER_TEMP/$ZIP" | awk '{print $1}')"
+          scripts/write-cask.sh "${GITHUB_REF_NAME#v}" "$SHA256" "$CASK_FILE"
+          cat "$CASK_FILE"
+          brew style "$CASK_FILE"
+
+      - name: Install, check and uninstall the cask
+        run: scripts/verify-cask.sh "$CASK_FILE"
+
+      - name: Push cask to the tap
+        working-directory: tap
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/claude-usage-bar.rb
+          if git diff --cached --quiet; then
+            echo "Cask already up to date."
+            exit 0
+          fi
+          git commit -m "claude-usage-bar ${GITHUB_REF_NAME#v}"
+          git push origin HEAD

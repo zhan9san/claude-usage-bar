@@ -60,7 +60,7 @@ final class UsageStore {
     }
 
     @ObservationIgnored private let keychain = KeychainStore(
-        service: "dev.local.claude-usage-bar",
+        service: "io.github.zhan9san.claude-usage-bar",
         account: "oauth-token"
     )
     @ObservationIgnored private let client = UsageClient()

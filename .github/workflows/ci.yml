@@ -36,6 +36,20 @@ jobs:
       - name: Package app
         run: ditto -c -k --keepParent "build/Claude Usage Bar.app" ClaudeUsageBar.zip
 
+      - name: Lint Homebrew cask
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: |
+          scripts/write-cask.sh 0.0.0 "$(shasum -a 256 ClaudeUsageBar.zip | awk '{print $1}')" \
+            build/cask-lint/Casks/claude-usage-bar.rb
+          brew style build/cask-lint/Casks/claude-usage-bar.rb
+
+      - name: Install Homebrew cask from the built zip
+        run: |
+          scripts/write-cask.sh 0.0.0 "$(shasum -a 256 ClaudeUsageBar.zip | awk '{print $1}')" \
+            build/cask-local/claude-usage-bar.rb "file://$PWD/ClaudeUsageBar.zip"
+          scripts/verify-cask.sh build/cask-local/claude-usage-bar.rb
+
       - name: Upload app
         uses: actions/upload-artifact@v7
         with:
