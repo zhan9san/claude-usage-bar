@@ -150,7 +150,9 @@ Observed on 2026-11-11 with a `setup-token` token:
 - NFR-8 Distribution: each `v*.*.*` tag publishes a zip and SHA-256 checksum
   to GitHub Releases and updates the `claude-usage-bar` cask in the
   `zhan9san/tap` Homebrew tap. Pull requests install the cask from the
-  freshly built zip to prove it works before release.
+  freshly built zip to prove it works before release. The README documents
+  Homebrew, manual and source installs, including `brew trust` and the
+  quarantine command.
 
 ## 8. Risks
 
@@ -162,6 +164,7 @@ Observed on 2026-11-11 with a `setup-token` token:
 | Ad-hoc signature changes on every rebuild                    | Keychain asks once per rebuild; choose "Always Allow"             |
 | `setup-token` tokens expire after about a year               | `401` message tells the user to create a new token                |
 | The app is not notarized, so Gatekeeper blocks it            | Cask clears the quarantine flag; release notes give the command   |
+| Homebrew refuses casks from untrusted third-party taps       | Install by full name to trust the cask; README shows `brew trust` |
 
 ## 9. Acceptance criteria
 
